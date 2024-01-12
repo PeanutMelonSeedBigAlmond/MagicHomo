@@ -421,6 +421,8 @@ func handleUDPConn(packet C.PacketAdapter) {
 			log.Infoln("[UDP] %s --> %s using GLOBAL", metadata.SourceDetail(), metadata.RemoteAddress())
 		case mode == Direct:
 			log.Infoln("[UDP] %s --> %s using DIRECT", metadata.SourceDetail(), metadata.RemoteAddress())
+		case !metadata.DstIP.IsValid():
+			log.Warnln("[UDP] %s --> %s could not resolve ip", metadata.SourceAddress(), metadata.RemoteAddress())
 		default:
 			log.Infoln("[UDP] %s --> %s doesn't match any rule using DIRECT", metadata.SourceDetail(), metadata.RemoteAddress())
 		}
@@ -573,6 +575,8 @@ func handleTCPConn(connCtx C.ConnContext) {
 		log.Infoln("[TCP] %s --> %s using GLOBAL", metadata.SourceDetail(), metadata.RemoteAddress())
 	case mode == Direct:
 		log.Infoln("[TCP] %s --> %s using DIRECT", metadata.SourceDetail(), metadata.RemoteAddress())
+	case !metadata.DstIP.IsValid():
+		log.Warnln("[TCP] %s --> %s could not resolve ip", metadata.SourceAddress(), metadata.RemoteAddress())
 	default:
 		log.Infoln(
 			"[TCP] %s --> %s doesn't match any rule using DIRECT",
@@ -605,6 +609,7 @@ func match(metadata *C.Metadata) (C.Proxy, C.Rule, error) {
 		resolved = true
 	}
 
+	var dnsNotResolve = false
 	for _, rule := range getRules(metadata) {
 		if !resolved && shouldResolveIP(rule, metadata) {
 			func() {
@@ -613,12 +618,19 @@ func match(metadata *C.Metadata) (C.Proxy, C.Rule, error) {
 				ip, err := resolver.ResolveIP(ctx, metadata.Host)
 				if err != nil {
 					log.Debugln("[DNS] resolve %s error: %s", metadata.Host, err.Error())
+					if err == resolver.ErrIPNotFound {
+						dnsNotResolve = true
+					}
 				} else {
 					log.Debugln("[DNS] %s --> %s", metadata.Host, ip.String())
 					metadata.DstIP = ip
 				}
 				resolved = true
 			}()
+		}
+
+		if dnsNotResolve {
+			return proxies["REJECT"], nil, nil
 		}
 
 		if attemptProcessLookup && !findProcessMode.Off() && (findProcessMode.Always() || rule.ShouldFindProcess()) {
