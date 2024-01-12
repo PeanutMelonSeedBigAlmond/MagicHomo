@@ -1,0 +1,58 @@
+name: Release
+on: 
+  workflow_dispatch:
+  push:
+    paths-ignore:
+      - "docs/**"
+      - "README.md"
+      - ".github/ISSUE_TEMPLATE/**"
+    branches:
+      - Alpha
+    tags:
+      - "v*"
+  pull_request_target:
+    branches:
+      - Alpha
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          check-latest: true
+          go-version: '1.21'
+
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v3
+
+      - name: Cache go module
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Build windows x64
+        env: 
+          GOARCH: amd64
+          GOOS: windows
+        run: |
+          go build -ldflags="-s -w" -tags with_gvisor -o bin/mihomo_windows_x64.exe
+
+      - name: Build linux x64
+        env: 
+          GOARCH: amd64
+          GOOS: linux
+        run: |
+          go build -ldflags="-s -w" -tags with_gvisor -o bin/mihomo_linux_x64
+
+      - name: Upload Release
+        uses: actions/upload-artifact@v4
+        with:
+          name: mihomo
+          path: bin/*
