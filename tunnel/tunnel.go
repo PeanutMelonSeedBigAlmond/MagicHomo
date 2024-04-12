@@ -12,6 +12,7 @@ import (
 	"time"
 
 	N "github.com/metacubex/mihomo/common/net"
+	"github.com/metacubex/mihomo/component/loopback"
 	"github.com/metacubex/mihomo/component/nat"
 	P "github.com/metacubex/mihomo/component/process"
 	"github.com/metacubex/mihomo/component/resolver"
@@ -600,7 +601,7 @@ func match(metadata *C.Metadata) (C.Proxy, C.Rule, error) {
 	defer configMux.RUnlock()
 	var (
 		resolved             bool
-		attemptProcessLookup = true
+		attemptProcessLookup = metadata.Type != C.INNER
 	)
 
 	if node, ok := resolver.DefaultHosts.Search(metadata.Host, false); ok {
@@ -704,6 +705,9 @@ func shouldStopRetry(err error) bool {
 		return true
 	}
 	if errors.Is(err, resolver.ErrIPv6Disabled) {
+		return true
+	}
+	if errors.Is(err, loopback.ErrReject) {
 		return true
 	}
 	return false

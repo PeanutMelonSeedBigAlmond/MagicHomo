@@ -46,18 +46,13 @@ type proxySetProvider struct {
 }
 
 func (pp *proxySetProvider) MarshalJSON() ([]byte, error) {
-	expectedStatus := "*"
-	if pp.healthCheck.expectedStatus != nil {
-		expectedStatus = pp.healthCheck.expectedStatus.ToString()
-	}
-
 	return json.Marshal(map[string]any{
 		"name":             pp.Name(),
 		"type":             pp.Type().String(),
 		"vehicleType":      pp.VehicleType().String(),
 		"proxies":          pp.Proxies(),
 		"testUrl":          pp.healthCheck.url,
-		"expectedStatus":   expectedStatus,
+		"expectedStatus":   pp.healthCheck.expectedStatus.String(),
 		"updatedAt":        pp.UpdatedAt,
 		"subscriptionInfo": pp.subscriptionInfo,
 	})
@@ -106,6 +101,10 @@ func (pp *proxySetProvider) Touch() {
 	pp.healthCheck.touch()
 }
 
+func (pp *proxySetProvider) HealthCheckURL() string {
+	return pp.healthCheck.url
+}
+
 func (pp *proxySetProvider) RegisterHealthCheckTask(url string, expectedStatus utils.IntRanges[uint16], filter string, interval uint) {
 	pp.healthCheck.registerHealthCheckTask(url, expectedStatus, filter, interval)
 }
@@ -125,8 +124,8 @@ func (pp *proxySetProvider) getSubscriptionInfo() {
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*90)
 		defer cancel()
-		resp, err := mihomoHttp.HttpRequest(ctx, pp.Vehicle().(*resource.HTTPVehicle).Url(),
-			http.MethodGet, http.Header{"User-Agent": {C.UA}}, nil)
+		resp, err := mihomoHttp.HttpRequestWithProxy(ctx, pp.Vehicle().(*resource.HTTPVehicle).Url(),
+			http.MethodGet, http.Header{"User-Agent": {C.UA}}, nil, pp.Vehicle().Proxy())
 		if err != nil {
 			return
 		}
@@ -134,8 +133,8 @@ func (pp *proxySetProvider) getSubscriptionInfo() {
 
 		userInfoStr := strings.TrimSpace(resp.Header.Get("subscription-userinfo"))
 		if userInfoStr == "" {
-			resp2, err := mihomoHttp.HttpRequest(ctx, pp.Vehicle().(*resource.HTTPVehicle).Url(),
-				http.MethodGet, http.Header{"User-Agent": {"Quantumultx"}}, nil)
+			resp2, err := mihomoHttp.HttpRequestWithProxy(ctx, pp.Vehicle().(*resource.HTTPVehicle).Url(),
+				http.MethodGet, http.Header{"User-Agent": {"Quantumultx"}}, nil, pp.Vehicle().Proxy())
 			if err != nil {
 				return
 			}
@@ -217,18 +216,13 @@ type compatibleProvider struct {
 }
 
 func (cp *compatibleProvider) MarshalJSON() ([]byte, error) {
-	expectedStatus := "*"
-	if cp.healthCheck.expectedStatus != nil {
-		expectedStatus = cp.healthCheck.expectedStatus.ToString()
-	}
-
 	return json.Marshal(map[string]any{
 		"name":           cp.Name(),
 		"type":           cp.Type().String(),
 		"vehicleType":    cp.VehicleType().String(),
 		"proxies":        cp.Proxies(),
 		"testUrl":        cp.healthCheck.url,
-		"expectedStatus": expectedStatus,
+		"expectedStatus": cp.healthCheck.expectedStatus.String(),
 	})
 }
 
@@ -269,6 +263,10 @@ func (cp *compatibleProvider) Proxies() []C.Proxy {
 
 func (cp *compatibleProvider) Touch() {
 	cp.healthCheck.touch()
+}
+
+func (cp *compatibleProvider) HealthCheckURL() string {
+	return cp.healthCheck.url
 }
 
 func (cp *compatibleProvider) RegisterHealthCheckTask(url string, expectedStatus utils.IntRanges[uint16], filter string, interval uint) {

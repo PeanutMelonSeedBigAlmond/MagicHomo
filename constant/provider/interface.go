@@ -31,6 +31,7 @@ func (v VehicleType) String() string {
 type Vehicle interface {
 	Read() ([]byte, error)
 	Path() string
+	Proxy() string
 	Type() VehicleType
 }
 
@@ -73,6 +74,7 @@ type ProxyProvider interface {
 	HealthCheck()
 	Version() uint32
 	RegisterHealthCheckTask(url string, expectedStatus utils.IntRanges[uint16], filter string, interval uint)
+	HealthCheckURL() string
 }
 
 // RuleProvider interface
