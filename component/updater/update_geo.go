@@ -142,11 +142,10 @@ func RegisterGeoUpdater(updateNotification chan struct{}) {
 		return
 	}
 
-	ticker := time.NewTicker(time.Duration(C.GeoUpdateInterval) * time.Hour)
-	defer ticker.Stop()
-
-	log.Infoln("[GEO] update GEO database every %d hours", C.GeoUpdateInterval)
 	go func() {
+		ticker := time.NewTicker(time.Duration(C.GeoUpdateInterval) * time.Hour)
+		defer ticker.Stop()
+
 		err, lastUpdate := getUpdateTime()
 		if err != nil {
 			log.Errorln("[GEO] Get GEO database update time error: %s", err.Error())
@@ -163,6 +162,7 @@ func RegisterGeoUpdater(updateNotification chan struct{}) {
 		}
 
 		for range ticker.C {
+			log.Infoln("[GEO] updating database every %d hours", C.GeoUpdateInterval)
 			if err := UpdateGeoDatabases(updateNotification); err != nil {
 				log.Errorln("[GEO] Failed to update GEO database: %s", err.Error())
 			}
