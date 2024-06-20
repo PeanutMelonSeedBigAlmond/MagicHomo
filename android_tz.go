@@ -4,6 +4,9 @@
 
 // kanged from https://github.com/golang/mobile/blob/c713f31d574bb632a93f169b2cc99c9e753fef0e/app/android.go#L89
 
+//go:build !windows
+// +build !windows
+
 package main
 
 // #include <time.h>
