@@ -53,6 +53,17 @@ func putMsgToCache(c dnsCache, key string, q D.Question, msg *D.Msg) {
 		return
 	}
 
+	// Ignore invalid A/AAAA record
+	//if q.Qtype == D.TypeA || q.Qtype == D.TypeAAAA || q.Qtype == D.TypeNS {
+	//	ips := msgToIP(msg)
+	//	if len(ips) != 0 && Any(ips, func(i netip.Addr) bool {
+	//		return netip.Addr.IsValid(i)
+	//	}) {
+	//		log.Infoln("[DNS] dns cache ignored because A/AAAA record is invalid for: %s", q.Name)
+	//		return
+	//	}
+	//}
+
 	var ttl uint32
 	if msg.Rcode == D.RcodeServerFailure {
 		// [...] a resolver MAY cache a server failure response.
@@ -226,4 +237,22 @@ func batchExchange(ctx context.Context, clients []dnsClient, m *D.Msg) (msg *D.M
 		}
 	}
 	return
+}
+
+func Any[T any](s []T, predicate func(T) bool) bool {
+	for _, i := range s {
+		if predicate(i) {
+			return true
+		}
+	}
+	return false
+}
+
+func All[T any](s []T, predicate func(T) bool) bool {
+	for _, i := range s {
+		if !predicate(i) {
+			return false
+		}
+	}
+	return true
 }
