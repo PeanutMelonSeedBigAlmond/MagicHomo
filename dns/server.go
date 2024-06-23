@@ -4,7 +4,6 @@ import (
 	stdContext "context"
 	"errors"
 	"net"
-	"net/netip"
 
 	"github.com/metacubex/mihomo/common/sockopt"
 	"github.com/metacubex/mihomo/constant/features"
@@ -29,9 +28,7 @@ type Server struct {
 // ServeDNS implement D.Handler ServeDNS
 func (s *Server) ServeDNS(w D.ResponseWriter, r *D.Msg) {
 	msg, err := handlerWithContext(stdContext.Background(), s.handler, r)
-	if msg.Answer == nil || len(msg.Answer) == 0 || All(msgToIP(msg), func(addr netip.Addr) bool {
-		return !addr.IsValid()
-	}) || err != nil {
+	if err != nil {
 		D.HandleFailed(w, r)
 		return
 	}
