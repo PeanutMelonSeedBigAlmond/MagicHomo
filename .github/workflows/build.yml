@@ -40,10 +40,10 @@ jobs:
           - { goos: linux, goarch: arm, goarm: '5', output: armv5 }
           - { goos: linux, goarch: arm, goarm: '6', output: armv6 }
           - { goos: linux, goarch: arm, goarm: '7', output: armv7 }
-          - { goos: linux, goarch: mips, mips: hardfloat, output: mips-hardfloat }
-          - { goos: linux, goarch: mips, mips: softfloat, output: mips-softfloat }
-          - { goos: linux, goarch: mipsle, mips: hardfloat, output: mipsle-hardfloat }
-          - { goos: linux, goarch: mipsle, mips: softfloat, output: mipsle-softfloat }
+          - { goos: linux, goarch: mips, gomips: hardfloat, output: mips-hardfloat }
+          - { goos: linux, goarch: mips, gomips: softfloat, output: mips-softfloat }
+          - { goos: linux, goarch: mipsle, gomips: hardfloat, output: mipsle-hardfloat }
+          - { goos: linux, goarch: mipsle, gomips: softfloat, output: mipsle-softfloat }
           - { goos: linux, goarch: mips64, output: mips64 }
           - { goos: linux, goarch: mips64le, output: mips64le }
           - { goos: linux, goarch: loong64, output: loong64-abi1, abi: '1' }
@@ -130,8 +130,27 @@ jobs:
         echo "/usr/local/go/bin" >> $GITHUB_PATH
 
       # modify from https://github.com/restic/restic/issues/4636#issuecomment-1896455557
+      # this patch file only works on golang1.23.x
+      # that means after golang1.24 release it must be changed
+      # see: https://github.com/MetaCubeX/go/commits/release-branch.go1.23/
+      # revert:
+      # 693def151adff1af707d82d28f55dba81ceb08e1: "crypto/rand,runtime: switch RtlGenRandom for ProcessPrng"
+      # 7c1157f9544922e96945196b47b95664b1e39108: "net: remove sysSocket fallback for Windows 7"
+      # 48042aa09c2f878c4faa576948b07fe625c4707a: "syscall: remove Windows 7 console handle workaround"
+      # a17d959debdb04cd550016a3501dd09d50cd62e7: "runtime: always use LoadLibraryEx to load system libraries"
+    - name: Revert Golang1.23 commit for Windows7/8
+      if: ${{ matrix.jobs.goos == 'windows' && matrix.jobs.goversion == '' }}
+      run: |
+        cd $(go env GOROOT)
+        curl https://github.com/MetaCubeX/go/commit/9ac42137ef6730e8b7daca016ece831297a1d75b.diff | patch --verbose -p 1
+        curl https://github.com/MetaCubeX/go/commit/21290de8a4c91408de7c2b5b68757b1e90af49dd.diff | patch --verbose -p 1
+        curl https://github.com/MetaCubeX/go/commit/6a31d3fa8e47ddabc10bd97bff10d9a85f4cfb76.diff | patch --verbose -p 1
+        curl https://github.com/MetaCubeX/go/commit/69e2eed6dd0f6d815ebf15797761c13f31213dd6.diff | patch --verbose -p 1
+
+      # modify from https://github.com/restic/restic/issues/4636#issuecomment-1896455557
       # this patch file only works on golang1.22.x
       # that means after golang1.23 release it must be changed
+      # see: https://github.com/MetaCubeX/go/commits/release-branch.go1.22/
       # revert:
       # 693def151adff1af707d82d28f55dba81ceb08e1: "crypto/rand,runtime: switch RtlGenRandom for ProcessPrng"
       # 7c1157f9544922e96945196b47b95664b1e39108: "net: remove sysSocket fallback for Windows 7"
@@ -200,10 +219,10 @@ jobs:
         GOOS: ${{matrix.jobs.goos}}
         GOARCH: ${{matrix.jobs.goarch}}
         GOAMD64: ${{matrix.jobs.goamd64}}
-        GOARM: ${{matrix.jobs.arm}}
-        GOMIPS: ${{matrix.jobs.mips}}
+        GOARM: ${{matrix.jobs.goarm}}
+        GOMIPS: ${{matrix.jobs.gomips}}
       run: |
-        echo $CGO_ENABLED
+        go env
         go build -v -tags "with_gvisor" -trimpath -ldflags "${BUILDTAG} -X 'github.com/metacubex/mihomo/constant.Version=${VERSION}' -X 'github.com/metacubex/mihomo/constant.BuildTime=${BUILDTIME}' -w -s -buildid="
         if [ "${{matrix.jobs.goos}}" = "windows" ]; then
           cp mihomo.exe mihomo-${{matrix.jobs.goos}}-${{matrix.jobs.output}}.exe
