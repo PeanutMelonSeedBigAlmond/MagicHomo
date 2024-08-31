@@ -35,7 +35,8 @@ type Pool struct {
 	offset  netip.Addr
 	cycle   bool
 	mux     sync.Mutex
-	host    []C.Rule
+	host    []C.DomainMatcher
+	mode    C.FilterMode
 	ipnet   netip.Prefix
 	store   store
 }
@@ -66,8 +67,16 @@ func (p *Pool) LookBack(ip netip.Addr) (string, bool) {
 
 // ShouldSkipped return if domain should be skipped
 func (p *Pool) ShouldSkipped(domain string) bool {
-	for _, rule := range p.host {
-		if match, _ := rule.Match(&C.Metadata{Host: domain}); match {
+	should := p.shouldSkipped(domain)
+	if p.mode == C.FilterWhiteList {
+		return !should
+	}
+	return should
+}
+
+func (p *Pool) shouldSkipped(domain string) bool {
+	for _, matcher := range p.host {
+		if matcher.MatchDomain(domain) {
 			return true
 		}
 	}
@@ -156,7 +165,8 @@ func (p *Pool) restoreState() {
 
 type Options struct {
 	IPNet netip.Prefix
-	Host  []C.Rule
+	Host  []C.DomainMatcher
+	Mode  C.FilterMode
 
 	// Size sets the maximum number of entries in memory
 	// and does not work if Persistence is true
@@ -187,6 +197,7 @@ func New(options Options) (*Pool, error) {
 		offset:  first.Prev(),
 		cycle:   false,
 		host:    options.Host,
+		mode:    options.Mode,
 		ipnet:   options.IPNet,
 	}
 	if options.Persistence {
