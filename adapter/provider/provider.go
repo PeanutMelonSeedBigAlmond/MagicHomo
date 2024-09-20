@@ -403,6 +403,16 @@ func proxiesParseAndFilter(filter string, excludeFilter string, excludeTypeArray
 					case "additional-suffix":
 						name := mapping["name"].(string)
 						mapping["name"] = name + *field.Interface().(*string)
+					case "proxy-name":
+						// Iterate through all naming replacement rules and perform the replacements.
+						for _, expr := range override.ProxyName {
+							name := mapping["name"].(string)
+							newName, err := expr.Pattern.Replace(name, expr.Target, 0, -1)
+							if err != nil {
+								return nil, fmt.Errorf("proxy name replace error: %w", err)
+							}
+							mapping["name"] = newName
+						}
 					default:
 						mapping[fieldName] = field.Elem().Interface()
 					}
